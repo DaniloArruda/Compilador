@@ -56,10 +56,10 @@ public class AnalisadorSemantico {
         return tipoRecebe == Tipo.FLOAT && tipoAtribui == Tipo.INT;
     }
 
-    public Tipo calcularTipos(Tipo tipo, Tipo operador, Tipo tipo2) {
+    public Tipo calcularTipos(Tipo tipo, Operador operador, Tipo tipo2) {
         if (tipo == Tipo.FLOAT || tipo2 == Tipo.FLOAT) return Tipo.FLOAT;
         
-        if (operador == Tipo.DIVISAO) return Tipo.FLOAT;
+        if (operador == Operador.DIVISAO) return Tipo.FLOAT;
         
         return Tipo.INT;
     }

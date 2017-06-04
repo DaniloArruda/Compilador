@@ -20,8 +20,11 @@ public class Compilador {
     private String codigo;
     private Integer tamanhoCodigo;
     private Integer contador = 0;
+    private Integer contadorVariaveis = 0;
+    private Integer contadorLabels = 0;
     
     private Stack<Simbolo> tabelaSimbolo = new Stack<>();
+    private Stack<Simbolo> tabelaVariavelTemporaria = new Stack<>();
     private Integer escopoAtual = -1;
    
     private AnalisadorSemantico analisadorSemantico = new AnalisadorSemantico();
@@ -361,7 +364,7 @@ public class Compilador {
         }
     }
 
-    private void destruirVariaveis(int escopo) {
+    private void destruirSimbolos(int escopo) {
         while (!this.tabelaSimbolo.empty() && this.tabelaSimbolo.peek().getEscopo() == escopo) {
             this.tabelaSimbolo.pop();
         }
@@ -400,7 +403,7 @@ public class Compilador {
             throw new SintaxException(linha, coluna, "esperado um '{'.");
         }
         
-        this.destruirVariaveis(this.escopoAtual);
+        this.destruirSimbolos(this.escopoAtual);
         this.escopoAtual--;
     }
     
@@ -466,23 +469,35 @@ public class Compilador {
         } else if (token.getTipo() == Tipo.WHILE || token.getTipo() == Tipo.DO) {
             this.iteracao();
         } else if (token.getTipo() == Tipo.IF) {
+            
             token = this.scan();
             
             if (token.getTipo() == Tipo.ABREPARENTESE) {
                 token = this.scan();
                 
-                this.expressaoRelacional();
+                Variavel temporaria = this.expressaoRelacional();
+                
+                String labelFimIf = newLabel();
+                System.out.print("\tif " + temporaria + " == 0 goto " + labelFimIf);
+                System.out.println();
                 
                 if (token.getTipo() == Tipo.FECHAPARENTESE) {
                     token = this.scan();
                     
                     this.comando();
                     
+                    
                     if (token.getTipo() == Tipo.ELSE) {
-                        token = this.scan();
+                        String labelFimElse = newLabel();
+                        System.out.println("\tgoto " + labelFimElse);
+                        System.out.println(labelFimIf + ": ");
                         
+                        token = this.scan();
                         this.comando();
-                    }
+                        
+                        System.out.println(labelFimElse + ": ");
+                    } else 
+                        System.out.println(labelFimIf + ": ");
                 } else {
                     throw new SintaxException(linha, coluna, "esperado um ')'.");
                 }
@@ -514,8 +529,11 @@ public class Compilador {
                 if (token.getTipo() == Tipo.ATRIBUICAO) {
                     token = this.scan();
 
-                    Tipo tipo = expressaoAritmetica();
-                    if (this.analisadorSemantico.tiposCompativeis(simbolo.getTipo(), tipo)) {
+                    Variavel variavel = expressaoAritmetica();
+                    if (this.analisadorSemantico.tiposCompativeis(simbolo.getTipo(), variavel.getTipo())) {
+                        
+                        System.out.println("\t" + simbolo.getNome() + " = " + variavel);
+                        
                         if (token.getTipo() == Tipo.PONTOVIRGULA) {
                             token = this.scan();
                         } else {
@@ -542,13 +560,20 @@ public class Compilador {
             
             if (token.getTipo() == Tipo.ABREPARENTESE) {
                 token = this.scan();
+                String labelComecoWhile = newLabel();
+                String labelFimWhile = newLabel();
+                System.out.println(labelComecoWhile + ": ");
                 
-                this.expressaoRelacional();
+                Variavel temporaria = this.expressaoRelacional();
+                
+                System.out.println("\tif " + temporaria + " == 0 goto " + labelFimWhile);
                 
                 if (token.getTipo() == Tipo.FECHAPARENTESE) {
                     token = this.scan();
-                    
                     this.comando();
+                    
+                    System.out.println("\tgoto " + labelComecoWhile);
+                    System.out.println(labelFimWhile + ": ");
                 } else {
                     throw new SintaxException(linha, coluna, "esperado um ')'.");
                 }
@@ -558,6 +583,9 @@ public class Compilador {
         } else if (token.getTipo() == Tipo.DO) {
             token = this.scan();
             
+            String labelComecoWhile = newLabel();
+            System.out.println(labelComecoWhile + ": ");
+            
             this.comando();
             
             if (token.getTipo() == Tipo.WHILE) {
@@ -566,7 +594,9 @@ public class Compilador {
                 if (token.getTipo() == Tipo.ABREPARENTESE) {
                     token = this.scan();
                     
-                    this.expressaoRelacional();
+                    Variavel temporaria = this.expressaoRelacional();
+                    
+                    System.out.println("\tif " + temporaria + " != 0 goto " + labelComecoWhile);
                     
                     if (token.getTipo() == Tipo.FECHAPARENTESE) {
                         token = this.scan();
@@ -591,49 +621,73 @@ public class Compilador {
         }
     }
 
-    private Tipo expressaoAritmetica() {
-        Tipo tipo = termo();
-        Tipo tipoResultante = expressaoAritmeticaAux(tipo);
+    private Variavel expressaoAritmetica() {
+        Variavel variavel = termo();
+        Variavel variavelResultante = expressaoAritmeticaAux(variavel);
         
-        return tipoResultante;
+        return variavelResultante;
     }
 
-    private Tipo expressaoAritmeticaAux(Tipo tipo) {
+    private Variavel expressaoAritmeticaAux(Variavel v1) {
+        Expressao expressao = new Expressao();
+        expressao.setV1(v1);
         if (token.getTipo() == Tipo.ADICAO || token.getTipo() == Tipo.SUBTRACAO) {
-            Tipo operador = token.getTipo();
+            Variavel temporaria = new Variavel();
+            
+            Operador operador = OperadorUtil.getOperador(token.getTipo());
+            expressao.setOperador(operador);
             
             token = this.scan();
             
-            Tipo tipo2 = termo();
-            Tipo tipoResultante = this.analisadorSemantico.calcularTipos(tipo, operador, tipo2);
+            Variavel v2 = termo();
+            expressao.setV2(v2);
+            Tipo tipoResultante = this.analisadorSemantico.calcularTipos(v1.getTipo(), operador, v2.getTipo());
             
-            return expressaoAritmeticaAux(tipoResultante);
+            temporaria.setNome(newTemp());
+            temporaria.setTipo(tipoResultante);
+            
+            System.out.print("\t" + temporaria + " = ");
+            this.imprimirExpressao(expressao);
+            
+            return expressaoAritmeticaAux(temporaria);
         }
         
-        return tipo;
+        return v1;
     }
     
-    private Tipo termo() {
+    private Variavel termo() {
+        Variavel temporaria;
         
-        Tipo tipo = fator();
+        Variavel v1 = fator();
+        Expressao expressao = new Expressao();
+        expressao.setV1(v1);
         
         while (token.getTipo() == Tipo.MULTIPLICACAO || token.getTipo() == Tipo.DIVISAO) {
-            Tipo operador = token.getTipo();
+            Operador operador = OperadorUtil.getOperador(token.getTipo());
+            expressao.setOperador(operador);
             
             token = this.scan();
-            Tipo tipo2 = fator();
+            Variavel v2 = fator();
             
-            tipo = this.analisadorSemantico.calcularTipos(tipo, operador, tipo2);
+            expressao.setV2(v2);
+            
+            Tipo tipo = this.analisadorSemantico.calcularTipos(v1.getTipo(), operador, v2.getTipo());
+            temporaria = new Variavel(newTemp(), tipo);
+            
+            System.out.print("\t" + temporaria + " = ");
+            this.imprimirExpressao(expressao);
+            
+            expressao.setV1(temporaria);
         }
         
-        return tipo;
+        return expressao.getV1();
     }
 
-    private Tipo fator() {
+    private Variavel fator() {
         if (token.getTipo() == Tipo.ABREPARENTESE) {
             token = this.scan();
             
-            Tipo retorno = expressaoAritmetica();
+            Variavel retorno = expressaoAritmetica();
             
             if (token.getTipo() == Tipo.FECHAPARENTESE) {
                 token = this.scan();
@@ -646,12 +700,12 @@ public class Compilador {
                     || token.getTipo() == Tipo.PONTOFLUTUANTE
                     || token.getTipo() == Tipo.CARACTER) {
             try {
-                Tipo retorno = this.analisadorSemantico.obterTipo(token, tabelaSimbolo, escopoAtual);
+                Tipo tipo = this.analisadorSemantico.obterTipo(token, tabelaSimbolo, escopoAtual);
                 
-                
+                Variavel variavel = new Variavel(token.getLexema(), tipo);
                 
                 token = this.scan();
-                return retorno;
+                return variavel;
             } catch (RuntimeException e) {
                 throw new SemanticException(linha, coluna, e.getMessage());
             }
@@ -660,23 +714,54 @@ public class Compilador {
         }
     }
 
-    private void expressaoRelacional() {
-        this.expressaoAritmetica();
+    private Variavel expressaoRelacional() {
+        Variavel v1 = this.expressaoAritmetica();
         
-        this.operadorRelacional();
+        Operador operador = this.operadorRelacional();
         
-        this.expressaoAritmetica();
+        Variavel v2 = this.expressaoAritmetica();
+        
+        Variavel temporaria = new Variavel(newTemp(), Tipo.INT);
+        
+        System.out.print("\t" + temporaria + " = ");
+        this.imprimirExpressao(new Expressao(v1, operador, v2));
+        
+        return temporaria;
     }
 
-    private void operadorRelacional() {
+    private Operador operadorRelacional() {
         if (token.getTipo() == Tipo.MAIOR
                 || token.getTipo() == Tipo.MENOR
                 || token.getTipo() == Tipo.MAIORIGUAL
                 || token.getTipo() == Tipo.MENORIGUAL
                 || token.getTipo() == Tipo.IGUAL
-                || token.getTipo() == Tipo.DIFERENTE)
+                || token.getTipo() == Tipo.DIFERENTE) {
+            Operador operador = OperadorUtil.getOperador(token.getTipo());
+            
             token = this.scan();
-        else
+            return operador;
+        } else
             throw new SintaxException(linha, coluna, "esperado um operador relacional.");
+    }
+    
+    
+    private void imprimirExpressao(Expressao expressao) {
+        if (expressao.getV1() != null)
+            System.out.print(expressao.getV1() + " ");
+        
+        if (expressao.getOperador() != null)
+            System.out.print(expressao.getOperador() + " ");
+        
+        if (expressao.getV2() != null) 
+            System.out.print(expressao.getV2());
+        
+        System.out.println();
+        
+    }
+    private String newTemp() {
+        return "t" + this.contadorVariaveis++;
+    }
+    private String newLabel() {
+        return "L" + contadorLabels++;
     }
 }
