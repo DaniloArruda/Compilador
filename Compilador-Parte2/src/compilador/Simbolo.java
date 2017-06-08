@@ -12,11 +12,17 @@ import java.util.Objects;
  * @author danilo
  */
 public class Simbolo {
-    private Tipo tipo;
     private String nome;
+    private Tipo tipo;
     private Integer escopo;
 
     public Simbolo() {
+    }
+
+    public Simbolo(String nome, Tipo tipo, Integer escopo) {
+        this.nome = nome;
+        this.tipo = tipo;
+        this.escopo = escopo;
     }
 
     public Simbolo(Integer escopo) {
@@ -74,5 +80,10 @@ public class Simbolo {
             return false;
         }
         return true;
+    }
+    
+    @Override
+    public String toString() {
+        return nome;
     }
 }

@@ -10,24 +10,24 @@ package compilador;
  * @author danilo
  */
 public class Expressao {
-    private Variavel v1;
+    private Simbolo v1;
     private Operador operador;
-    private Variavel v2;
+    private Simbolo v2;
 
     public Expressao() {
     }
 
-    public Expressao(Variavel v1, Operador operador, Variavel v2) {
+    public Expressao(Simbolo v1, Operador operador, Simbolo v2) {
         this.v1 = v1;
         this.operador = operador;
         this.v2 = v2;
     }
 
-    public Variavel getV1() {
+    public Simbolo getV1() {
         return v1;
     }
 
-    public void setV1(Variavel v1) {
+    public void setV1(Simbolo v1) {
         this.v1 = v1;
     }
 
@@ -39,11 +39,11 @@ public class Expressao {
         this.operador = operador;
     }
 
-    public Variavel getV2() {
+    public Simbolo getV2() {
         return v2;
     }
 
-    public void setV2(Variavel v2) {
+    public void setV2(Simbolo v2) {
         this.v2 = v2;
     }
 }

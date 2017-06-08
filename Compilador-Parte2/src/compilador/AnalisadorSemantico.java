@@ -57,6 +57,10 @@ public class AnalisadorSemantico {
     }
 
     public Tipo calcularTipos(Tipo tipo, Operador operador, Tipo tipo2) {
+        if (tipo == Tipo.CHAR && tipo2 == Tipo.CHAR) return Tipo.CHAR;
+        
+        if (tipo == Tipo.CHAR || tipo2 == Tipo.CHAR) throw new RuntimeException("Tipos incompatíveis.");
+        
         if (tipo == Tipo.FLOAT || tipo2 == Tipo.FLOAT) return Tipo.FLOAT;
         
         if (operador == Operador.DIVISAO) return Tipo.FLOAT;
